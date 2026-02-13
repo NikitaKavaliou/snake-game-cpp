@@ -1,23 +1,24 @@
 #include <iostream>
-#include <conio.h>   // for kbhit() and getch()
-#include <windows.h> // for Sleep()
+#include <vector>
+#include <cstdlib>
+#include <unistd.h>   // for usleep()
 using namespace std;
 
-bool gameOver;
 const int width = 20;
 const int height = 10;
-int x, y;          // snake head
+
+int x, y;
 int fruitX, fruitY;
 int score;
-int tailX[100], tailY[100];
-int nTail;
-enum eDirection { STOP = 0, LEFT, RIGHT, UP, DOWN };
-eDirection dir;
+vector<int> tailX;
+vector<int> tailY;
+int dir = 2; // start moving right
 
-void Setup()
-{
-    gameOver = false;
-    dir = STOP;
+void clearScreen() {
+    cout << "\033[2J\033[1;1H";
+}
+
+void setup() {
     x = width / 2;
     y = height / 2;
     fruitX = rand() % width;
@@ -25,151 +26,97 @@ void Setup()
     score = 0;
 }
 
-void Draw()
-{
-    system("cls"); // clear screen
+void draw() {
+    clearScreen();
 
-    // top border
-    for (int i = 0; i < width + 2; i++)
-        cout << "#";
-    cout << endl;
+    for (int i = 0; i < width + 2; i++) cout << "#";
+    cout << "\n";
 
-    // field
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            if (j == 0)
-                cout << "#";
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+
+            if (j == 0) cout << "#";
 
             if (i == y && j == x)
-                cout << "O"; // snake head
+                cout << "O";
             else if (i == fruitY && j == fruitX)
-                cout << "F"; // fruit
-            else
-            {
-                bool printTail = false;
-                for (int k = 0; k < nTail; k++)
-                {
-                    if (tailX[k] == j && tailY[k] == i)
-                    {
+                cout << "F";
+            else {
+                bool printed = false;
+                for (int k = 0; k < tailX.size(); k++) {
+                    if (tailX[k] == j && tailY[k] == i) {
                         cout << "o";
-                        printTail = true;
+                        printed = true;
                         break;
                     }
                 }
-                if (!printTail)
-                    cout << " ";
+                if (!printed) cout << " ";
             }
 
-            if (j == width - 1)
-                cout << "#";
+            if (j == width - 1) cout << "#";
         }
-        cout << endl;
+        cout << "\n";
     }
 
-    // bottom border
-    for (int i = 0; i < width + 2; i++)
-        cout << "#";
-    cout << endl;
+    for (int i = 0; i < width + 2; i++) cout << "#";
+    cout << "\n";
 
-    cout << "Score: " << score << endl;
+    cout << "Score: " << score << "\n";
+    cout << "Enter direction (w/a/s/d) and press ENTER: ";
 }
 
-void Input()
-{
-    if (_kbhit())
-    {
-        switch (_getch())
-        {
-        case 'a':
-            dir = LEFT;
-            break;
-        case 'd':
-            dir = RIGHT;
-            break;
-        case 'w':
-            dir = UP;
-            break;
-        case 's':
-            dir = DOWN;
-            break;
-        case 'x':
-            gameOver = true;
-            break;
+void logic() {
+    if (!tailX.empty()) {
+        for (int i = tailX.size() - 1; i > 0; i--) {
+            tailX[i] = tailX[i - 1];
+            tailY[i] = tailY[i - 1];
+        }
+        tailX[0] = x;
+        tailY[0] = y;
+    }
+
+    if (dir == 1) x--;
+    if (dir == 2) x++;
+    if (dir == 3) y--;
+    if (dir == 4) y++;
+
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+        cout << "GAME OVER!\n";
+        exit(0);
+    }
+
+    for (int i = 0; i < tailX.size(); i++) {
+        if (tailX[i] == x && tailY[i] == y) {
+            cout << "GAME OVER!\n";
+            exit(0);
         }
     }
-}
 
-void Logic()
-{
-    // move tail
-    int prevX = tailX[0];
-    int prevY = tailY[0];
-    int prev2X, prev2Y;
-    tailX[0] = x;
-    tailY[0] = y;
-    for (int i = 1; i < nTail; i++)
-    {
-        prev2X = tailX[i];
-        prev2Y = tailY[i];
-        tailX[i] = prevX;
-        tailY[i] = prevY;
-        prevX = prev2X;
-        prevY = prev2Y;
-    }
-
-    // move head
-    switch (dir)
-    {
-    case LEFT:
-        x--;
-        break;
-    case RIGHT:
-        x++;
-        break;
-    case UP:
-        y--;
-        break;
-    case DOWN:
-        y++;
-        break;
-    default:
-        break;
-    }
-
-    // collision with walls
-    if (x < 0 || x >= width || y < 0 || y >= height)
-        gameOver = true;
-
-    // collision with tail
-    for (int i = 0; i < nTail; i++)
-    {
-        if (tailX[i] == x && tailY[i] == y)
-            gameOver = true;
-    }
-
-    // eat fruit
-    if (x == fruitX && y == fruitY)
-    {
+    if (x == fruitX && y == fruitY) {
         score += 10;
         fruitX = rand() % width;
         fruitY = rand() % height;
-        nTail++;
+        tailX.push_back(x);
+        tailY.push_back(y);
     }
 }
 
-int main()
-{
-    Setup();
-    while (!gameOver)
-    {
-        Draw();
-        Input();
-        Logic();
-        Sleep(100); // slow down a bit
+int main() {
+    setup();
+
+    while (true) {
+        draw();
+
+        char c;
+        cin >> c;
+
+        if (c == 'a') dir = 1;
+        if (c == 'd') dir = 2;
+        if (c == 'w') dir = 3;
+        if (c == 's') dir = 4;
+
+        logic();
     }
 
-    cout << "Game over! Final score: " << score << endl;
     return 0;
 }
